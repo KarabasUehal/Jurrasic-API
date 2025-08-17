@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"golang-gin/handlers"
 	"golang-gin/models"
 	"golang-gin/storage"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -21,10 +23,10 @@ func main() {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
-	redisClient = redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // Пароль не обязателен
-		DB:       0,
+	redisHost := os.Getenv("REDIS_HOST")
+	redisPort := os.Getenv("REDIS_PORT")
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: fmt.Sprintf("%s:%s", redisHost, redisPort),
 	})
 
 	ctx := context.Background()
@@ -43,7 +45,11 @@ func main() {
 	router.PUT("/dino/update/:id", handlers.UpdateDinosaurByID)
 	router.DELETE("/dino/delete/:id", handlers.DeleteDinosaurByID)
 
-	router.Run(":3000")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	router.Run(":" + port)
 }
 
 func cacheMiddleware(c *gin.Context) {

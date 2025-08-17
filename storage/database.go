@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"fmt"
 	"golang-gin/models"
 	"log"
+	"os"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -13,7 +15,15 @@ var db *gorm.DB
 
 // Функция инициализации базы данных
 func InitDatabase() error {
-	dsn := "host=localhost user=postgres password=1998ki31 dbname=api port=5432 sslmode=disable"
+
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbUser := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		dbHost, dbPort, dbUser, dbPassword, dbName)
 	var err error
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
