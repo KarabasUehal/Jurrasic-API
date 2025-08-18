@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 )
@@ -36,14 +37,21 @@ func main() {
 	}
 
 	router := gin.Default()
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3001"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 
 	router.Use(cacheMiddleware)
 
 	router.GET("/dino", handlers.GetAllDinosaurus)
 	router.GET("/dino/:id", handlers.GetDinosaurByID)
-	router.POST("/dino/add", handlers.AddDinosaur)
-	router.PUT("/dino/update/:id", handlers.UpdateDinosaurByID)
-	router.DELETE("/dino/delete/:id", handlers.DeleteDinosaurByID)
+	router.POST("/dino", handlers.AddDinosaur)
+	router.PUT("/dino/:id", handlers.UpdateDinosaurByID)
+	router.DELETE("/dino/:id", handlers.DeleteDinosaurByID)
 
 	port := os.Getenv("PORT")
 	if port == "" {

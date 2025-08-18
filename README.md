@@ -19,16 +19,17 @@ Answer must be a "PONG"
 
 To see the logs you can use:
 
-docker-compose logs app
+docker-compose logs backend
+docker-compose logs frontend
 
-When you will sure that everything is working you can make requests to localhost:3000 like this:
+When you will sure that everything is working you can go to localhost:3001 in your browser and operating with frontend, or make requests directly to backend on localhost:3000 like this:
 
-Use GET request "/dino" - to get list of all dinosaurus (It can be used even from simple browser)
-Use GET request "/dino/id" - to det some dinosaur by id (It can be used even form simple browser)
+Use GET request "localhost:3000/dino" - to get list of all dinosaurus (It can be used even from simple browser)
+Use GET request "localhost:3000/dino/id" - to det some dinosaur by id (It can be used even form simple browser)
 
-Use POST request "/dino/add" - to add new dinosaur with some json-data (from curl, Postman or similar apps)
-Use PUT request "/dino/update/id" - to update some dinosaur (from curl, Postman or similar apps)
-Use DELETE request "/dino/delete/id" - to delete some dinosaur (from curl, Postman or similar apps)
+Use POST request "localhost:3000/dino" - to add new dinosaur with some json-data (from curl, Postman or similar apps)
+Use PUT request "localhost:3000/dino/id" - to update some dinosaur or add if id not exists (from curl, Postman or similar apps)
+Use DELETE request "localhost:3000/dino/id" - to delete some dinosaur (from curl, Postman or similar apps)
 
 To stop container use command:
 

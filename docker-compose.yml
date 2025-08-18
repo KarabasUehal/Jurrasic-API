@@ -1,8 +1,7 @@
-version: '3.8'
 services:
-  app:
+  backend:
     build:
-      context: .
+      context: ./jurrasic-backend
       dockerfile: Dockerfile
     ports:
       - "3000:3000" 
@@ -21,7 +20,18 @@ services:
       redis:
         condition: service_started
     networks:
-      - app-network
+      - dino-network
+
+  frontend:
+    build:
+      context: ./jurrasic-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+    networks:
+      - dino-network
 
   postgres:
     image: postgres:latest
@@ -39,7 +49,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - app-network
+      - dino-network
 
   redis:
     image: redis:latest
@@ -48,12 +58,12 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - app-network
+      - dino-network
 
 volumes:
   postgres_data:
   redis_data:
 
 networks:
-  app-network:
+  dino-network:
     driver: bridge
