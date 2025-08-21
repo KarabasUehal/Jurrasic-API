@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Container, Typography, TextField, Button, Box } from '@mui/material';
 
-const Login = () => {
+const Register = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -13,8 +13,9 @@ const Login = () => {
       localStorage.setItem('token', res.data.token);
       window.location.href = '/';
     } catch (err) {
-      alert('Register failed');
-    }
+  const errorMessage = err.response?.data?.message || 'Registration failed';
+  alert(errorMessage);
+}
   };
 
   return (
@@ -46,4 +47,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Register;
