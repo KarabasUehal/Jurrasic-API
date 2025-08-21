@@ -1,8 +1,8 @@
 package storage
 
 import (
+	"Dinosaurus/models"
 	"fmt"
-	"golang-gin/models"
 	"log"
 	"os"
 
@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var db *gorm.DB
+var DB *gorm.DB
 
 // Функция инициализации базы данных
 func InitDatabase() error {
@@ -25,7 +25,7 @@ func InitDatabase() error {
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPassword, dbName)
 	var err error
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 
@@ -33,13 +33,13 @@ func InitDatabase() error {
 		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
 	}
 
-	err = db.AutoMigrate(&models.Dinosaurus{})
+	err = DB.AutoMigrate(&models.Dinosaurus{})
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 
 	var count int64
-	db.Model(&models.Dinosaurus{}).Count(&count)
+	DB.Model(&models.Dinosaurus{}).Count(&count)
 	if count == 0 {
 		dinosaurus := []models.Dinosaurus{
 			{Species: "Allosaurus", Types: "Carnivorous", Height: 4.00, Length: 11.00, Weight: 4.00, Aquatic: false, Flying: false},
@@ -58,7 +58,7 @@ func InitDatabase() error {
 			{Species: "Triceratops", Types: "Herbivorous", Height: 3.00, Length: 12.00, Weight: 9.00, Aquatic: false, Flying: false},
 			{Species: "Tyrannosaurus", Types: "Carnivorous", Height: 5.00, Length: 12.80, Weight: 8.50, Aquatic: false, Flying: false},
 		}
-		if err := db.Create(&dinosaurus).Error; err != nil {
+		if err := DB.Create(&dinosaurus).Error; err != nil {
 			log.Fatalf("Failed to insert initial data: %v", err)
 		}
 	}
@@ -68,5 +68,5 @@ func InitDatabase() error {
 // Функция для получения экземпляра базы данных
 func GetDB() *gorm.DB {
 	// Возвращение глобальной переменной db, содержащей подключение к базе данных
-	return db
+	return DB
 }

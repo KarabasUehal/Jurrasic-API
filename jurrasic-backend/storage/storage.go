@@ -1,14 +1,14 @@
 package storage
 
 import (
-	"golang-gin/models"
+	"Dinosaurus/models"
 	"log"
 )
 
 func GetAllDinosaurus() *[]models.Dinosaurus {
 	var dinosaurus *[]models.Dinosaurus
 
-	if result := db.Find(&dinosaurus); result.Error != nil {
+	if result := DB.Find(&dinosaurus); result.Error != nil {
 		log.Printf("Failed to query dinosaurus: %v", result.Error)
 		return nil
 	}
@@ -17,30 +17,27 @@ func GetAllDinosaurus() *[]models.Dinosaurus {
 
 func GetDinosaurByID(id int) *models.Dinosaurus {
 	var dinosaur models.Dinosaurus
-	if result := db.First(&dinosaur, id); result.Error != nil {
+	if result := DB.First(&dinosaur, id); result.Error != nil {
 		log.Printf("Failed to query item ID %d: %v", id, result.Error)
 		return nil
 	}
 	return &dinosaur
 }
 
-// Функция для добавление новой записи о динозавре
-func AddDinosaur(newDino models.Dinosaurus) models.Dinosaurus {
-	var dinosaurus *[]models.Dinosaurus
-	// Использование GORM для выполнения SQL-запроса INSERT и сохранения нового динозавра в базе данных
-	if err := db.Create(&newDino); err != nil {
-		log.Printf("Failed to update item ID %d: %v", newDino.ID, err)
+func AddDinosaur(newDino *models.Dinosaurus) *models.Dinosaurus {
+	var dinosaurus []models.Dinosaurus
+
+	if err := DB.Create(&newDino); err != nil {
+		log.Printf("Failed to create dinosaur: %v", err)
 	}
-	db.Find(&dinosaurus)
-	return newDino // Возвращение созданного динозавра
+	DB.Find(&dinosaurus)
+	return newDino
 }
 
-// Функция для обновления существующего динозавра по ID
 func UpdateDinosaurByID(id int, updateDino models.Dinosaurus) *models.Dinosaurus {
 	var dinosaur models.Dinosaurus
-	// Использование GORM для выполнения SQL-запроса SELECT с условием WHERE id = id динозавра
-	if result := db.First(&dinosaur, id); result.Error != nil {
-		log.Printf("Failed to find item ID %d: %v", updateDino.ID, result.Error)
+	if result := DB.First(&dinosaur, id); result.Error != nil {
+		log.Printf("Failed to find dinosaur ID %d: %v", updateDino.ID, result.Error)
 		return nil
 	}
 
@@ -51,19 +48,18 @@ func UpdateDinosaurByID(id int, updateDino models.Dinosaurus) *models.Dinosaurus
 	dinosaur.Weight = updateDino.Weight
 	dinosaur.Aquatic = updateDino.Aquatic
 	dinosaur.Flying = updateDino.Flying
-	// Использование GORM для выполнения SQL-запроса UPDATE и сохранения обновленной записи о динозавре в базе данных
-	if err := db.Save(dinosaur); err != nil {
-		log.Printf("Failed to update item ID %d: %v", id, err)
+
+	if err := DB.Save(dinosaur); err != nil {
+		log.Printf("Failed to update dinosaur ID %d: %v", id, err)
 	}
-	return &dinosaur // Возвращение обновленной записи
+	return &dinosaur
 }
 
-// Функция для удаления динозавра по ID
 func DeleteDinosaurByID(id int) bool {
-	// Использование GORM для выполнения SQL-запроса DELETE с условием WHERE id = id заметки
-	if result := db.Delete(&models.Dinosaurus{}, id); result.Error != nil {
-		log.Printf("Failed to delete item ID %d: %v", id, result.Error)
-		return false // Возвращение false, если удаление не удалось
+
+	if result := DB.Delete(&models.Dinosaurus{}, id); result.Error != nil {
+		log.Printf("Failed to delete dinosaur ID %d: %v", id, result.Error)
+		return false
 	}
-	return true // Возвращение true при успешном удалении записи
+	return true
 }

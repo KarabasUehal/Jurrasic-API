@@ -27,7 +27,7 @@ services:
       context: ./jurrasic-frontend
       dockerfile: Dockerfile
     ports:
-      - "3001:80"
+      - "80:80"
     depends_on:
       - backend
     networks:

@@ -8,14 +8,22 @@ import (
 	"strconv"
 	"time"
 
-	"golang-gin/models"
-	"golang-gin/storage"
+	"Dinosaurus/models"
+	"Dinosaurus/storage"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var redisClient *redis.Client
+var jwtKey = []byte("amfkdhfneigjtnfkgmdlsvmutskgsjrg")
+
+type Claims struct {
+	Username string `json:"username"`
+	jwt.RegisteredClaims
+}
 
 func GetAllDinosaurus(c *gin.Context) {
 	cacheKey := c.Request.URL.String()
@@ -39,7 +47,6 @@ func GetAllDinosaurus(c *gin.Context) {
 	}
 
 	dinosaurus := storage.GetAllDinosaurus()
-
 	if dinosaurus == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query dinosaurus"})
 		return
@@ -52,12 +59,10 @@ func GetAllDinosaurus(c *gin.Context) {
 		return
 	}
 
-	// Сохраняем в Redis с TTL 5 минут
 	if redisClient != nil {
 		err = redisClient.Set(ctx, cacheKey, dinosaurusJSON, 5*time.Minute).Err()
 		if err != nil {
 			log.Printf("Failed to cache items: %v", err)
-			// Продолжаем, так как данные из БД уже получены
 		}
 	} else {
 		log.Printf("Redis client is nil, skipping cache for dinosaurus list")
@@ -96,7 +101,6 @@ func GetDinosaurByID(c *gin.Context) {
 	}
 
 	dinosaur := storage.GetDinosaurByID(id)
-
 	if dinosaur == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Dinosaur not found"})
 		return
@@ -113,7 +117,6 @@ func GetDinosaurByID(c *gin.Context) {
 		err = redisClient.Set(ctx, cacheKey, dinosaurJSON, 5*time.Minute).Err()
 		if err != nil {
 			log.Printf("Failed to cache dinosaur ID %d: %v", id, err)
-			// Продолжаем, так как данные из БД уже получены
 		}
 	} else {
 		log.Printf("Redis client is nil, skipping cache for dinosaur ID %d", id)
@@ -133,20 +136,19 @@ func AddDinosaur(c *gin.Context) {
 	}
 
 	dinosaur := storage.AddDinosaur(
-		newDino,
+		&newDino,
 	)
 
 	ctx := context.Background()
 	if redisClient != nil {
-		err := redisClient.Del(ctx, "/dino").Err()
+		err := redisClient.Del(ctx, "/api/dinosaurus").Err()
 		if err != nil {
-			log.Printf("Failed to invalidate cache for /dino: %v", err)
-			// Не возвращаем ошибку клиенту, так как операция с БД успешна
+			log.Printf("Failed to invalidate cache for /api/dinosaurus: %v", err)
 		} else {
-			log.Printf("Created dinosaur ID %d, invalidated cache for /dino", newDino.ID)
+			log.Printf("Created dinosaur ID %d, invalidated cache for /api/dinosaurus", newDino.ID)
 		}
 	} else {
-		log.Printf("Redis client is nil, skipping cache invalidation for /dino")
+		log.Printf("Redis client is nil, skipping cache invalidation for /api/dinosaurus")
 	}
 
 	c.JSON(http.StatusCreated, dinosaur)
@@ -178,7 +180,7 @@ func UpdateDinosaurByID(c *gin.Context) {
 
 	if dinosaur == nil {
 		NewDinosaur := storage.AddDinosaur(
-			updatedDino,
+			&updatedDino,
 		)
 		c.JSON(http.StatusCreated, NewDinosaur)
 		return
@@ -190,11 +192,11 @@ func UpdateDinosaurByID(c *gin.Context) {
 		if err != nil {
 			log.Printf("Failed to invalidate cache for %s: %v", c.Request.URL.String(), err)
 		}
-		err = redisClient.Del(ctx, "/dino").Err()
+		err = redisClient.Del(ctx, "/api/dinosaurus").Err()
 		if err != nil {
-			log.Printf("Failed to invalidate cache for /dino: %v", err)
+			log.Printf("Failed to invalidate cache for /api/dinosaurus: %v", err)
 		} else {
-			log.Printf("Updated dinosaur ID %d, invalidated cache for %s and /dino", id, c.Request.URL.String())
+			log.Printf("Updated dinosaur ID %d, invalidated cache for %s and /api/dinosaurus", id, c.Request.URL.String())
 		}
 	} else {
 		log.Printf("Redis client is nil, skipping cache invalidation for dinosaur ID %d", id)
@@ -225,15 +227,64 @@ func DeleteDinosaurByID(c *gin.Context) {
 		if err != nil {
 			log.Printf("Failed to invalidate cache for %s: %v", c.Request.URL.String(), err)
 		}
-		err = redisClient.Del(ctx, "/dino").Err()
+		err = redisClient.Del(ctx, "/api/dinosaurus").Err()
 		if err != nil {
-			log.Printf("Failed to invalidate cache for /dino: %v", err)
+			log.Printf("Failed to invalidate cache for /api/dinosaurus: %v", err)
 		} else {
-			log.Printf("Deleted dinosaur ID %d, invalidated cache for %s and /dino", id, c.Request.URL.String())
+			log.Printf("Deleted dinosaur ID %d, invalidated cache for %s and /api/dinosaurus", id, c.Request.URL.String())
 		}
 	} else {
 		log.Printf("Redis client is nil, skipping cache invalidation for dinosaur ID %d", id)
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func Register(c *gin.Context) {
+	var user models.User
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 14)
+	user.Password = string(hashedPassword)
+	storage.DB.Create(&user)
+
+	expirationTime := time.Now().Add(24 * time.Hour)
+	claims := &Claims{
+		Username: user.Username,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, _ := token.SignedString(jwtKey)
+	c.JSON(http.StatusOK, gin.H{"message": "User registered", "token": tokenString})
+}
+
+func Login(c *gin.Context) {
+	var user models.User
+	var input struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	storage.DB.Where("username = ?", input.Username).First(&user)
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+	expirationTime := time.Now().Add(24 * time.Hour)
+	claims := &Claims{
+		Username: input.Username,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, _ := token.SignedString(jwtKey)
+	c.JSON(http.StatusOK, gin.H{"token": tokenString})
 }

@@ -1,22 +1,24 @@
 package main
 
 import (
+	"Dinosaurus/handlers"
+	"Dinosaurus/models"
+	"Dinosaurus/storage"
 	"context"
 	"encoding/json"
 	"fmt"
-	"golang-gin/handlers"
-	"golang-gin/models"
-	"golang-gin/storage"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
 )
 
 var redisClient *redis.Client
+var jwtKey = []byte("amfkdhfneigjtnfkgmdlsvmutskgsjrg")
 
 func main() {
 
@@ -38,7 +40,7 @@ func main() {
 
 	router := gin.Default()
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3001"},
+		AllowOrigins:     []string{"http://localhost"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
 		AllowCredentials: true,
@@ -47,11 +49,17 @@ func main() {
 
 	router.Use(cacheMiddleware)
 
-	router.GET("/dino", handlers.GetAllDinosaurus)
-	router.GET("/dino/:id", handlers.GetDinosaurByID)
-	router.POST("/dino", handlers.AddDinosaur)
-	router.PUT("/dino/:id", handlers.UpdateDinosaurByID)
-	router.DELETE("/dino/:id", handlers.DeleteDinosaurByID)
+	router.POST("/register", handlers.Register)
+	router.POST("/login", handlers.Login)
+
+	// Защищенные роуты с JWT
+	api := router.Group("/api")
+	api.Use(AuthMiddleware())
+	api.GET("/dinosaurus", handlers.GetAllDinosaurus)
+	api.GET("/dinosaurus/:id", handlers.GetDinosaurByID)
+	api.POST("/dinosaurus", handlers.AddDinosaur)
+	api.PUT("/dinosaurus/:id", handlers.UpdateDinosaurByID)
+	api.DELETE("/dinosaurus/:id", handlers.DeleteDinosaurByID)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -110,4 +118,25 @@ func cacheMiddleware(c *gin.Context) {
 		c.JSON(http.StatusOK, dinosaur)
 	}
 	c.Abort()
+}
+
+func AuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenStr := c.GetHeader("Authorization")
+		if tokenStr == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+			c.Abort()
+			return
+		}
+		claims := &handlers.Claims{}
+		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+			return jwtKey, nil
+		})
+		if err != nil || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }
