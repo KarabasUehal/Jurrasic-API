@@ -17,7 +17,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var redisClient *redis.Client
 var jwtKey = []byte("amfkdhfneigjtnfkgmdlsvmutskgsjrg")
 
 type Claims struct {
@@ -28,6 +27,7 @@ type Claims struct {
 func GetAllDinosaurus(c *gin.Context) {
 	cacheKey := c.Request.URL.String()
 	ctx := context.Background()
+	redisClient := storage.GetRedisClient()
 
 	if redisClient != nil {
 		cached, err := redisClient.Get(ctx, cacheKey).Result()
@@ -72,6 +72,8 @@ func GetAllDinosaurus(c *gin.Context) {
 }
 
 func GetDinosaurByID(c *gin.Context) {
+	redisClient := storage.GetRedisClient()
+
 	id, err := strconv.Atoi(c.Param("id"))
 
 	if err != nil {
@@ -127,6 +129,7 @@ func GetDinosaurByID(c *gin.Context) {
 
 func AddDinosaur(c *gin.Context) {
 	var newDino models.Dinosaurus
+	redisClient := storage.GetRedisClient()
 
 	if err := c.ShouldBindJSON(&newDino); err != nil {
 		log.Printf("Failed to bind JSON: %v", err)
@@ -155,6 +158,8 @@ func AddDinosaur(c *gin.Context) {
 }
 
 func UpdateDinosaurByID(c *gin.Context) {
+	redisClient := storage.GetRedisClient()
+
 	id, err := strconv.Atoi(c.Param("id"))
 
 	if err != nil {
@@ -206,6 +211,8 @@ func UpdateDinosaurByID(c *gin.Context) {
 }
 
 func DeleteDinosaurByID(c *gin.Context) {
+	redisClient := storage.GetRedisClient()
+
 	id, err := strconv.Atoi(c.Param("id"))
 
 	if err != nil {
